@@ -6,14 +6,16 @@ author 'TropicGalxy'
 description 'ped loot'
 version '1.0'
 
-shared_script 'config.lua'
+shared_scripts {
+ 'config.lua',
+ '@ox_lib/init.lua'
+}
 
 server_scripts {
-    'server.lua',
+    'server.lua'
 }
 
 client_scripts {
-    '@ox_lib/init.lua', 
     'client.lua'
 }
 
