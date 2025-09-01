@@ -1,18 +1,13 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local checkedPeds = {}
-local activeProps = {}
 
 local function IsPedBlacklisted(ped)
     local model = GetEntityModel(ped)
     for _, name in ipairs(Config.PedBlacklist) do
         if type(name) == "string" then
-            if model == joaat(name) then
-                return true
-            end
+            if model == joaat(name) then return true end
         elseif type(name) == "number" then
-            if model == name then
-                return true
-            end
+            if model == name then return true end
         end
     end
     return false
@@ -30,8 +25,8 @@ CreateThread(function()
                 if not checkedPeds[ped] and #(GetEntityCoords(ped) - pCoords) < 50.0 then
                     if IsPedDeadOrDying(ped, true) and not IsPedBlacklisted(ped) then
                         checkedPeds[ped] = true
-                        local coords = GetEntityCoords(ped)
-                        TriggerServerEvent('tropic-lootpeds:server:HandleDeath', coords)
+                        local netId = NetworkGetNetworkIdFromEntity(ped)
+                        TriggerServerEvent('tropic-lootpeds:server:HandleDeath', netId)
                         sleep = 500
                     end
                 end
@@ -50,19 +45,22 @@ RegisterNetEvent('tropic-lootpeds:client:SpawnLoot', function(coords, dropList)
         local offset = vector3(math.cos(angle) * Config.DropRadius, math.sin(angle) * Config.DropRadius, 0.0)
         local dropCoords = coords + offset
         local model = joaat(drop.prop)
+
         lib.requestModel(model)
         local obj = CreateObject(model, dropCoords.x, dropCoords.y, dropCoords.z, true, true, false)
         SetEntityAsMissionEntity(obj, true, true)
         PlaceObjectOnGroundProperly(obj)
-        activeProps[obj] = true
+
+        local netId = NetworkGetNetworkIdFromEntity(obj)
+        TriggerServerEvent('tropic-lootpeds:server:RegisterProp', netId, drop)
 
         SetEntityDrawOutline(obj, true)
         SetEntityDrawOutlineColor(0, 255, 0, 255)
-        SetEntityDrawOutlineShader(1) 
+        SetEntityDrawOutlineShader(1)
 
         exports.ox_target:addLocalEntity(obj, {
             {
-                name = ''.. drop.prop .. ':' .. i,
+                name = drop.prop .. ':' .. i,
                 label = drop.label,
                 icon = 'fas fa-box',
                 distance = 3.0,
@@ -71,24 +69,26 @@ RegisterNetEvent('tropic-lootpeds:client:SpawnLoot', function(coords, dropList)
                     local pCoords = GetEntityCoords(ped)
                     local oCoords = GetEntityCoords(obj)
                     if #(pCoords - oCoords) > 3.0 then return end
+
                     lib.requestAnimDict("pickup_object")
                     TaskPlayAnim(ped, "pickup_object", "pickup_low", 1.0, -1.0, 1000, 49, 0, false, false, false)
                     Wait(900)
-                    TriggerServerEvent('tropic-lootpeds:server:CollectLoot', drop)
 
-                    SetEntityDrawOutline(obj, false)
-                    DeleteEntity(obj)
-                    activeProps[obj] = nil
+                    local success = lib.callback.await('tropic-lootpeds:server:CollectLoot', false, netId)
+                    if success then
+                        SetEntityDrawOutline(obj, false)
+                        DeleteEntity(obj)
+                    end
                 end
             }
         })
 
         if Config.PropDespawnTime and Config.PropDespawnTime > 0 then
             SetTimeout(Config.PropDespawnTime, function()
-                if DoesEntityExist(obj) and activeProps[obj] then
-                    SetEntityDrawOutline(obj, false) 
+                if DoesEntityExist(obj) then
+                    SetEntityDrawOutline(obj, false)
                     DeleteEntity(obj)
-                    activeProps[obj] = nil
+                    TriggerServerEvent('tropic-lootpeds:server:RegisterProp', netId, nil)
                 end
             end)
         end
