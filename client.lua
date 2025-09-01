@@ -86,7 +86,7 @@ RegisterNetEvent('tropic-lootpeds:client:SpawnLoot', function(coords, dropList)
         if Config.PropDespawnTime and Config.PropDespawnTime > 0 then
             SetTimeout(Config.PropDespawnTime, function()
                 if DoesEntityExist(obj) and activeProps[obj] then
-                    SetEntityDrawOutline(obj, false) -- disable outline before deletion
+                    SetEntityDrawOutline(obj, false) 
                     DeleteEntity(obj)
                     activeProps[obj] = nil
                 end
