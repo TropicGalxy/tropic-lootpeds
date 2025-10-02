@@ -42,10 +42,21 @@ RegisterNetEvent('tropic-lootpeds:client:SpawnLoot', function(coords, dropList)
     local angleStep = (2 * math.pi) / #dropList
     for i, drop in ipairs(dropList) do
         local angle = i * angleStep
-        local offset = vector3(math.cos(angle) * Config.DropRadius, math.sin(angle) * Config.DropRadius, 0.0)
-        local dropCoords = coords + offset
-        local model = joaat(drop.prop)
+        local radius = Config.DropRadius
+        local dropCoords
 
+        repeat
+            local offset = vector3(math.cos(angle) * radius, math.sin(angle) * radius, 0.0)
+            dropCoords = coords + offset
+
+            if IsPositionOccupied(dropCoords.x, dropCoords.y, dropCoords.z, 0.5, false, true, false, false, false, false, 0, false) then
+                radius = radius + 2.0 
+            else
+                break
+            end
+        until radius > Config.DropRadius + 7.0
+
+        local model = joaat(drop.prop)
         lib.requestModel(model)
         local obj = CreateObject(model, dropCoords.x, dropCoords.y, dropCoords.z, true, true, false)
         SetEntityAsMissionEntity(obj, true, true)
